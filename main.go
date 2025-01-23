@@ -155,14 +155,15 @@ func main() {
 	}
 
 	// sort by filename first
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].filename < entries[j].filename
-	})
 
 	switch opts.sortBy {
 	case "diff":
-		sort.Slice(entries, func(i, j int) bool {
-			return entries[i].diff > entries[j].diff // descending
+		sort.SliceStable(entries, func(i, j int) bool {
+			return entries[i].diff > entries[j].diff
+		})
+	case "filename":
+		sort.SliceStable(entries, func(i, j int) bool {
+			return entries[i].filename < entries[j].filename
 		})
 	}
 
