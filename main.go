@@ -54,16 +54,17 @@ func shouldUseColor(opt string) bool {
 	}
 }
 
-func parseMemoryFile(filepath string) (map[string]int64, error) {
+func parseMemoryFile(filepath string) (map[string]int64, []string, error) {
 	file, err := os.Open(filepath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer file.Close()
 
 	result := make(map[string]int64)
-	scanner := bufio.NewScanner(file)
+	order := make([]string, 0)
 
+	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.Contains(line, "|") && !strings.Contains(line, "File Name") {
@@ -71,21 +72,18 @@ func parseMemoryFile(filepath string) (map[string]int64, error) {
 			if len(parts) != 2 {
 				continue
 			}
-
 			filename := strings.TrimSpace(parts[0])
 			usageStr := strings.TrimSpace(parts[1])
 			usageStr = strings.Split(usageStr, " ")[0]
-
 			usage, err := strconv.ParseInt(usageStr, 10, 64)
 			if err != nil {
 				continue
 			}
-
 			result[filename] = usage
+			order = append(order, filename)
 		}
 	}
-
-	return result, scanner.Err()
+	return result, order, scanner.Err()
 }
 
 type DiffEntry struct {
@@ -123,34 +121,33 @@ func main() {
 	beforeFile := args[0]
 	afterFile := args[1]
 
-	before, err := parseMemoryFile(beforeFile)
+	before, beforeFiles, err := parseMemoryFile(beforeFile)
 	if err != nil {
 		fmt.Printf("Error reading before file: %v\n", err)
 		os.Exit(1)
 	}
 
-	after, err := parseMemoryFile(afterFile)
+	after, afterFiles, err := parseMemoryFile(afterFile)
 	if err != nil {
 		fmt.Printf("Error reading after file: %v\n", err)
 		os.Exit(1)
 	}
 
-	var entries []DiffEntry
+	entries := make([]DiffEntry, 0)
 
-	for filename, afterUsage := range after {
-		if beforeUsage, exists := before[filename]; exists {
-			diff := afterUsage - beforeUsage
-			if diff != 0 {
-				entries = append(entries, DiffEntry{filename, diff, afterUsage, beforeUsage})
-			}
-		} else {
-			entries = append(entries, DiffEntry{filename, afterUsage, afterUsage, 0})
-		}
+	// Process files that exist in before
+	for _, filename := range beforeFiles {
+		beforeUsage := before[filename]
+		afterUsage := after[filename]
+		diff := afterUsage - beforeUsage
+		entries = append(entries, DiffEntry{filename, diff, afterUsage, beforeUsage})
 	}
 
-	for filename, beforeUsage := range before {
-		if _, exists := after[filename]; !exists {
-			entries = append(entries, DiffEntry{filename, -beforeUsage, 0, beforeUsage})
+	// Add new files that only exist in after
+	for _, filename := range afterFiles {
+		afterUsage := after[filename]
+		if _, exists := before[filename]; !exists {
+			entries = append(entries, DiffEntry{filename, afterUsage, afterUsage, 0})
 		}
 	}
 
@@ -179,16 +176,18 @@ func main() {
 			}
 		}
 
-		colorStart, colorEnd := "", ""
+		colorStart, colorEnd, colorNew := "", "", ""
 		if useColor {
-			colorStart, colorEnd = color, resetColor
+			colorStart, colorEnd, colorNew = color, resetColor, yellowColor
 		}
-		if entry.before == 0 {
-			fmt.Printf("%s | %s%d %s(new)%s\n", entry.filename, colorStart, entry.diff, yellowColor, colorEnd)
+		if entry.before == entry.after {
+			fmt.Printf("%s | %s%d (=%d-%d) (unchanged)%s\n", entry.filename, colorStart, entry.diff, entry.after, entry.before, colorEnd)
+		} else if entry.before == 0 {
+			fmt.Printf("%s | %s%d (=%d-%d) %s(new)%s\n", entry.filename, colorStart, entry.diff, entry.after, entry.before, colorNew, colorEnd)
 		} else if entry.after == 0 {
-			fmt.Printf("%s | %s%d (removed)%s\n", entry.filename, colorStart, entry.diff, colorEnd)
+			fmt.Printf("%s | %s%d (=%d-%d) (removed)%s\n", entry.filename, colorStart, entry.diff, entry.after, entry.before, colorEnd)
 		} else {
-			fmt.Printf("%s | %s%d (=%d-%d)%s\n", entry.filename, colorStart, entry.diff, entry.after, entry.before, colorEnd)
+			fmt.Printf("%s | %s%d (=%d-%d) %s\n", entry.filename, colorStart, entry.diff, entry.after, entry.before, colorEnd)
 		}
 	}
 }
