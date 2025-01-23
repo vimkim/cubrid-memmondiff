@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	redColor   = "\033[31m"
-	greenColor = "\033[32m"
-	resetColor = "\033[0m"
+	redColor    = "\033[31m"
+	greenColor  = "\033[32m"
+	resetColor  = "\033[0m"
+	yellowColor = "\033[33m"
 )
 
 type Options struct {
@@ -182,11 +183,11 @@ func main() {
 			colorStart, colorEnd = color, resetColor
 		}
 		if entry.before == 0 {
-			fmt.Printf("%s%s | %d (new)%s\n", colorStart, entry.filename, entry.diff, colorEnd)
+			fmt.Printf("%s | %s%d %s(new)%s\n", entry.filename, colorStart, entry.diff, yellowColor, colorEnd)
 		} else if entry.after == 0 {
-			fmt.Printf("%s%s | %d (removed)%s\n", colorStart, entry.filename, entry.diff, colorEnd)
+			fmt.Printf("%s | %s%d (removed)%s\n", entry.filename, colorStart, entry.diff, colorEnd)
 		} else {
-			fmt.Printf("%s%s | %d (=%d-%d)%s\n", colorStart, entry.filename, entry.diff, entry.after, entry.before, colorEnd)
+			fmt.Printf("%s | %s%d (=%d-%d)%s\n", entry.filename, colorStart, entry.diff, entry.after, entry.before, colorEnd)
 		}
 	}
 }
