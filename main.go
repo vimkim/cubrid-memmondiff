@@ -8,10 +8,11 @@ import (
 	"strings"
 )
 
-type MemoryEntry struct {
-	filename string
-	usage    int64
-}
+const (
+	redColor   = "\033[31m"
+	greenColor = "\033[32m"
+	resetColor = "\033[0m"
+)
 
 func parseMemoryFile(filepath string) (map[string]int64, error) {
 	file, err := os.Open(filepath)
@@ -56,7 +57,6 @@ func main() {
 	beforeFile := os.Args[1]
 	afterFile := os.Args[2]
 
-	// Parse both files
 	before, err := parseMemoryFile(beforeFile)
 	if err != nil {
 		fmt.Printf("Error reading before file: %v\n", err)
@@ -69,10 +69,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Find differences
 	diffs := make(map[string]int64)
 
-	// Check for entries that exist in both files or only in after
 	for filename, afterUsage := range after {
 		if beforeUsage, exists := before[filename]; exists {
 			diff := afterUsage - beforeUsage
@@ -80,28 +78,32 @@ func main() {
 				diffs[filename] = diff
 			}
 		} else {
-			// New entry in after
 			diffs[filename] = afterUsage
 		}
 	}
 
-	// Check for entries that only exist in before
 	for filename, beforeUsage := range before {
 		if _, exists := after[filename]; !exists {
 			diffs[filename] = -beforeUsage
 		}
 	}
 
-	// Print differences
 	for filename, diff := range diffs {
 		originalValue := before[filename]
+		color := ""
 		if diff > 0 {
-			fmt.Printf("%s | %d (=%d-%d)\n", filename, diff, after[filename], originalValue)
+			color = redColor
+		} else if diff < 0 {
+			color = greenColor
+		}
+
+		if diff > 0 {
+			fmt.Printf("%s%s | %d (=%d-%d)%s\n", color, filename, diff, after[filename], originalValue, resetColor)
 		} else {
 			if _, exists := after[filename]; exists {
-				fmt.Printf("%s | %d (=%d-%d)\n", filename, diff, after[filename], originalValue)
+				fmt.Printf("%s%s | %d (=%d-%d)%s\n", color, filename, diff, after[filename], originalValue, resetColor)
 			} else {
-				fmt.Printf("%s | %d (removed)\n", filename, diff)
+				fmt.Printf("%s%s | %d (removed)%s\n", color, filename, diff, resetColor)
 			}
 		}
 	}
