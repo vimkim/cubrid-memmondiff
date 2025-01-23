@@ -10,7 +10,7 @@ Usage: ./memmondiff [options] <before_file> <after_file>
 Options:
   --color=MODE      color output (MODE: auto, always, never)
   --sort=TYPE       sort output (TYPE: filename, diff)
-  --min=VALUE       minimum diff value to show (default: show all)
+  --min=VALUE       minimum diff value to show (default: math.MinInt64)
   --no-new          do not include new entries
   --pretty-print    pretty print numbers
 ```
