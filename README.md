@@ -17,7 +17,7 @@
 Download the latest release from GitHub Releases
 
 # From source
-go install github.com/yourusername/memmon-diff@latest
+go install github.com/vimkim/cubrid-memmondiff@latest
 ```
 
 ## Usage
