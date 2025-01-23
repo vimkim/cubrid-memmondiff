@@ -10,6 +10,9 @@ build-release:
 run-ycsb: build
     ./memmondiff ./testdata/ycsb_before ./testdata/ycsb_after
 
+run-min: build
+    ./memmondiff --min=10000 ./testdata/ycsb_before ./testdata/ycsb_after
+
 tests: test-ycsb
 
 test-ycsb: build

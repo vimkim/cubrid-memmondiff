@@ -18,8 +18,9 @@ const (
 )
 
 type Options struct {
-	color  string
-	sortBy string
+	color   string
+	sortBy  string
+	minDiff int64
 }
 
 type customFlag struct {
@@ -107,10 +108,12 @@ func main() {
 
 	colorOpt := flag.String("color", "auto", "")
 	sortOpt := flag.String("sort", "diff", "")
+	minDiff := flag.Int64("min", 0, "minimum diff value to show")
 
 	flag.Parse()
 	opts.color = *colorOpt
 	opts.sortBy = *sortOpt
+	opts.minDiff = *minDiff
 
 	args := flag.Args()
 	if len(args) != 2 {
@@ -135,19 +138,31 @@ func main() {
 
 	entries := make([]DiffEntry, 0)
 
+	var total int64
+
 	// Process files that exist in before
 	for _, filename := range beforeFiles {
 		beforeUsage := before[filename]
 		afterUsage := after[filename]
 		diff := afterUsage - beforeUsage
-		entries = append(entries, DiffEntry{filename, diff, afterUsage, beforeUsage})
+		total += diff
+
+		if diff >= *minDiff {
+			entries = append(entries, DiffEntry{filename, diff, afterUsage, beforeUsage})
+		}
+
 	}
 
 	// Add new files that only exist in after
 	for _, filename := range afterFiles {
 		afterUsage := after[filename]
 		if _, exists := before[filename]; !exists {
-			entries = append(entries, DiffEntry{filename, afterUsage, afterUsage, 0})
+			diff := afterUsage // beforeUsage is 0
+			total += diff
+
+			if diff >= *minDiff {
+				entries = append(entries, DiffEntry{filename, afterUsage, afterUsage, 0})
+			}
 		}
 	}
 
@@ -192,10 +207,6 @@ func main() {
 		}
 	}
 
-	var total int64
-	for _, entry := range entries {
-		total += entry.diff
-	}
 	if useColor {
 		if total > 0 {
 			colorStart = redColor
