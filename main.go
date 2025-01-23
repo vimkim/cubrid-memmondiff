@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -108,7 +109,7 @@ func main() {
 
 	colorOpt := flag.String("color", "auto", "")
 	sortOpt := flag.String("sort", "diff", "")
-	minDiff := flag.Int64("min", 0, "minimum diff value to show")
+	minDiff := flag.Int64("min", math.MinInt64, "minimum diff value to show")
 
 	flag.Parse()
 	opts.color = *colorOpt
