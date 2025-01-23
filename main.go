@@ -121,7 +121,6 @@ func main() {
 	opts.sortBy = *sortOpt
 	opts.minDiff = *minDiff
 	opts.noNew = *noNew
-	fmt.Printf("%v\n", *noNew)
 
 	args := flag.Args()
 	if len(args) != 2 {
