@@ -12,6 +12,7 @@ Options:
   --sort=TYPE       sort output (TYPE: filename, diff)
   --min=VALUE       minimum diff value to show (default: show all)
   --no-new          do not include new entries
+  --pretty-print    pretty print numbers
 ```
 
 ### Installation
@@ -47,6 +48,7 @@ just run # use casey/just
 ![image](https://github.com/user-attachments/assets/b4ae18cc-6ccd-4ab9-a81f-4a06d269c670)
 
 ### Supported Platforms
+
 - Linux
 - Windows
 - MacOs (theoretically)
