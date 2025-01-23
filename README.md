@@ -2,13 +2,23 @@
 
 ### Difftool for CUBRID memmon
 
+#### Usage
+
+```bash
+Usage: ./memmondiff [options] <before_file> <after_file>
+
+Options:
+  --color=MODE               color output (MODE: auto, always, never)
+  --sort=TYPE                sort output (TYPE: filename, diff)
+```
+
 #### Linux
 
-![image](https://github.com/user-attachments/assets/7ce442aa-f179-4443-b9d8-865ac37d67da)
+![image](https://github.com/user-attachments/assets/d9e87217-9eaf-4e69-8d4a-26080f935b4f)
 
 #### Windows
 
-![image](https://github.com/user-attachments/assets/dfce602e-a012-435f-9528-3abf2bc430cc)
+![image](https://github.com/user-attachments/assets/b449799c-515e-43e6-b1ce-2aa5815d00f8)
 
 ## Installation
 
@@ -18,28 +28,12 @@ Download the latest release from GitHub Releases
 
 # From source
 go install github.com/vimkim/cubrid-memmondiff@latest
+
+# Or
+git clone https://github.com/vimkim/cubrid-memmondiff
+cd cubrid-memmondiff
+go build .
+
+# Or
+just run # use casey/just
 ```
-
-## Usage
-
-```bash
-memmondiff [--color=always|auto|never] file1.txt file2.txt
-```
-
-Options:
-
-- `--color=always`: Always show colors
-- `--color=auto`: Show colors when output is to terminal (default)
-- `--color=never`: Never show colors
-
-Example output:
-
-```
-base/system_parameter.c:11736 | 1032 (=2064-1032)
-base/system_parameter.c:11927 | 128 (=256-128)
-```
-
-Colors:
-
-- Red: Memory increase
-- Green: Memory decrease
