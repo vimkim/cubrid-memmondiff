@@ -166,19 +166,20 @@ func main() {
 
 	useColor := shouldUseColor(opts.color)
 
+	colorStart, colorEnd, colorNew := "", "", ""
+	if useColor {
+		colorEnd, colorNew = resetColor, yellowColor
+	}
+
 	for _, entry := range entries {
-		color := ""
 		if useColor {
 			if entry.diff > 0 {
-				color = redColor
+				colorStart = redColor
 			} else if entry.diff < 0 {
-				color = greenColor
+				colorStart = greenColor
+			} else {
+				colorStart = resetColor
 			}
-		}
-
-		colorStart, colorEnd, colorNew := "", "", ""
-		if useColor {
-			colorStart, colorEnd, colorNew = color, resetColor, yellowColor
 		}
 		if entry.before == entry.after {
 			fmt.Printf("%s | %s%d (=%d-%d) (unchanged)%s\n", entry.filename, colorStart, entry.diff, entry.after, entry.before, colorEnd)
@@ -190,4 +191,17 @@ func main() {
 			fmt.Printf("%s | %s%d (=%d-%d) %s\n", entry.filename, colorStart, entry.diff, entry.after, entry.before, colorEnd)
 		}
 	}
+
+	var total int64
+	for _, entry := range entries {
+		total += entry.diff
+	}
+	if useColor {
+		if total > 0 {
+			colorStart = redColor
+		} else if total < 0 {
+			colorStart = greenColor
+		}
+	}
+	fmt.Printf("Total diff: %s%d%s\n", colorStart, total, colorEnd)
 }
