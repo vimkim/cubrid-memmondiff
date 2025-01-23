@@ -45,7 +45,7 @@ just run # use casey/just
 
 ##### No New Entries, and Only Diff >= 10000
 
-![image](https://github.com/user-attachments/assets/b4ae18cc-6ccd-4ab9-a81f-4a06d269c670)
+![image](https://github.com/user-attachments/assets/fa2e18cc-244a-4979-b5f3-47c49a97773a)
 
 ### Supported Platforms
 
