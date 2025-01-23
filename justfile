@@ -15,8 +15,11 @@ run-ycsb:
 
 tests: test-ycsb
 
-test-example:
+test-example: build
     ./tests/test_1_2.sh
 
-test-ycsb:
+test-ycsb: build
     ./tests/test_ycsb.sh
+
+help: build
+    ./memmondiff --help

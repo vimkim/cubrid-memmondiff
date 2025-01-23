@@ -9,12 +9,6 @@ EXPECTED="${TEST_DIR}/expected_ycsb.txt"
 
 echo "Running test: ${TEST_NAME}"
 
-# Build and verify
-if ! go build -o ${BINARY} .; then
-    echo "FAIL: Build failed"
-    exit 1
-fi
-
 # Run test
 if ! ./${BINARY} --color=never ${TEST_DIR}/ycsb_before ${TEST_DIR}/ycsb_after >${ACTUAL}; then
     echo "FAIL: Program execution failed"

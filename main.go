@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"os"
 	"sort"
@@ -14,6 +15,43 @@ const (
 	greenColor = "\033[32m"
 	resetColor = "\033[0m"
 )
+
+type Options struct {
+	color  string
+	sortBy string
+}
+
+type customFlag struct {
+	set   func(string)
+	value string
+}
+
+func (f *customFlag) Set(value string) error {
+	f.set(value)
+	return nil
+}
+
+func (f *customFlag) String() string {
+	return f.value
+}
+
+func isTerminal() bool {
+	if stdoutInfo, err := os.Stdout.Stat(); err == nil {
+		return (stdoutInfo.Mode() & os.ModeCharDevice) != 0
+	}
+	return false
+}
+
+func shouldUseColor(opt string) bool {
+	switch opt {
+	case "always":
+		return true
+	case "never":
+		return false
+	default: // "auto"
+		return isTerminal()
+	}
+}
 
 func parseMemoryFile(filepath string) (map[string]int64, error) {
 	file, err := os.Open(filepath)
@@ -49,14 +87,40 @@ func parseMemoryFile(filepath string) (map[string]int64, error) {
 	return result, scanner.Err()
 }
 
+type DiffEntry struct {
+	filename string
+	diff     int64
+	after    int64
+	before   int64
+}
+
 func main() {
-	if len(os.Args) != 3 {
-		fmt.Println("Usage: program <before_file> <after_file>")
+	opts := Options{
+		color:  "auto",
+		sortBy: "diff",
+	}
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s [options] <before_file> <after_file>\n\nOptions:\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  --color=MODE               color output (MODE: auto, always, never)\n")
+		fmt.Fprintf(os.Stderr, "  --sort=TYPE                sort output (TYPE: filename, diff)\n")
+	}
+
+	colorOpt := flag.String("color", "auto", "")
+	sortOpt := flag.String("sort", "diff", "")
+
+	flag.Parse()
+	opts.color = *colorOpt
+	opts.sortBy = *sortOpt
+
+	args := flag.Args()
+	if len(args) != 2 {
+		flag.Usage()
 		os.Exit(1)
 	}
 
-	beforeFile := os.Args[1]
-	afterFile := os.Args[2]
+	beforeFile := args[0]
+	afterFile := args[1]
 
 	before, err := parseMemoryFile(beforeFile)
 	if err != nil {
@@ -70,51 +134,59 @@ func main() {
 		os.Exit(1)
 	}
 
-	diffs := make(map[string]int64)
+	var entries []DiffEntry
 
 	for filename, afterUsage := range after {
 		if beforeUsage, exists := before[filename]; exists {
 			diff := afterUsage - beforeUsage
 			if diff != 0 {
-				diffs[filename] = diff
+				entries = append(entries, DiffEntry{filename, diff, afterUsage, beforeUsage})
 			}
 		} else {
-			diffs[filename] = afterUsage
+			entries = append(entries, DiffEntry{filename, afterUsage, afterUsage, 0})
 		}
 	}
 
 	for filename, beforeUsage := range before {
 		if _, exists := after[filename]; !exists {
-			diffs[filename] = -beforeUsage
+			entries = append(entries, DiffEntry{filename, -beforeUsage, 0, beforeUsage})
 		}
 	}
 
-	// Get sorted keys
-	var filenames []string
-	for filename := range diffs {
-		filenames = append(filenames, filename)
-	}
-	sort.Strings(filenames)
+	// sort by filename first
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].filename < entries[j].filename
+	})
 
-	// Iterate in sorted order
-	for _, filename := range filenames {
-		diff := diffs[filename]
-		originalValue := before[filename]
+	switch opts.sortBy {
+	case "diff":
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].diff > entries[j].diff // descending
+		})
+	}
+
+	useColor := shouldUseColor(opts.color)
+
+	for _, entry := range entries {
 		color := ""
-		if diff > 0 {
-			color = redColor
-		} else if diff < 0 {
-			color = greenColor
+		if useColor {
+			if entry.diff > 0 {
+				color = redColor
+			} else if entry.diff < 0 {
+				color = greenColor
+			}
 		}
 
-		if diff > 0 {
-			fmt.Printf("%s%s | %d (=%d-%d)%s\n", color, filename, diff, after[filename], originalValue, resetColor)
+		colorStart, colorEnd := "", ""
+		if useColor {
+			colorStart, colorEnd = color, resetColor
+		}
+		if entry.before == 0 {
+			fmt.Printf("%s%s | %d (new)%s\n", colorStart, entry.filename, entry.diff, colorEnd)
+		} else if entry.after == 0 {
+			fmt.Printf("%s%s | %d (removed)%s\n", colorStart, entry.filename, entry.diff, colorEnd)
 		} else {
-			if _, exists := after[filename]; exists {
-				fmt.Printf("%s%s | %d (=%d-%d)%s\n", color, filename, diff, after[filename], originalValue, resetColor)
-			} else {
-				fmt.Printf("%s%s | %d (removed)%s\n", color, filename, diff, resetColor)
-			}
+			fmt.Printf("%s%s | %d (=%d-%d)%s\n", colorStart, entry.filename, entry.diff, entry.after, entry.before, colorEnd)
 		}
 	}
 }
