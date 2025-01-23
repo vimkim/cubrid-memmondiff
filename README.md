@@ -1,16 +1,55 @@
 # memmondiff
 
-### Difftool for CUBRID memmon
+## Difftool for CUBRID memmon
 
-#### Usage
+### Usage
 
-```bash
+```txt
 Usage: ./memmondiff [options] <before_file> <after_file>
 
 Options:
-  --color=MODE               color output (MODE: auto, always, never)
-  --sort=TYPE                sort output (TYPE: filename, diff)
+  --color=MODE      color output (MODE: auto, always, never)
+  --sort=TYPE       sort output (TYPE: filename, diff)
+  --min=VALUE       minimum diff value to show (default: show all)
+  --no-new          do not include new entries
 ```
+
+### Installation
+
+```bash
+# Binary
+# Just download the latest release from GitHub Releases
+# For example,
+wget https://github.com/vimkim/cubrid-memmondiff/releases/download/v0.0.2/memmondiff-linux-amd64
+
+###
+
+# Or use go module,
+go install github.com/vimkim/cubrid-memmondiff@latest
+
+###
+
+# Or build from source,
+git clone https://github.com/vimkim/cubrid-memmondiff
+cd cubrid-memmondiff
+go build .
+
+###
+
+# You can use Casey/just
+just run # use casey/just
+```
+
+#### Filtering Examples
+
+##### No New Entries, and Only Diff >= 10000
+
+![image](https://github.com/user-attachments/assets/b4ae18cc-6ccd-4ab9-a81f-4a06d269c670)
+
+### Supported Platforms
+- Linux
+- Windows
+- MacOs (theoretically)
 
 #### Linux
 
@@ -19,21 +58,3 @@ Options:
 #### Windows
 
 ![image](https://github.com/user-attachments/assets/b449799c-515e-43e6-b1ce-2aa5815d00f8)
-
-## Installation
-
-```bash
-# Binary
-Download the latest release from GitHub Releases
-
-# From source
-go install github.com/vimkim/cubrid-memmondiff@latest
-
-# Or
-git clone https://github.com/vimkim/cubrid-memmondiff
-cd cubrid-memmondiff
-go build .
-
-# Or
-just run # use casey/just
-```
