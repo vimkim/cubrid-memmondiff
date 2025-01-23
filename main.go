@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -88,7 +89,16 @@ func main() {
 		}
 	}
 
-	for filename, diff := range diffs {
+	// Get sorted keys
+	var filenames []string
+	for filename := range diffs {
+		filenames = append(filenames, filename)
+	}
+	sort.Strings(filenames)
+
+	// Iterate in sorted order
+	for _, filename := range filenames {
+		diff := diffs[filename]
 		originalValue := before[filename]
 		color := ""
 		if diff > 0 {
