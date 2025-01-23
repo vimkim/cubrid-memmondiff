@@ -26,3 +26,6 @@ test-ycsb: build
 
 help: build
     ./memmondiff --help
+
+pretty-print: build
+    ./memmondiff --min=10000 --pretty-print ./testdata/ycsb_before ./testdata/ycsb_after

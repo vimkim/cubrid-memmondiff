@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/dustin/go-humanize"
 )
 
 const (
@@ -19,10 +21,11 @@ const (
 )
 
 type Options struct {
-	color   string
-	sortBy  string
-	minDiff int64
-	noNew   bool
+	color       string
+	sortBy      string
+	minDiff     int64
+	noNew       bool
+	prettyPrint bool
 }
 
 type customFlag struct {
@@ -96,6 +99,11 @@ type DiffEntry struct {
 	before   int64
 }
 
+// Function to format numbers with commas
+func formatNumber(n int64) string {
+	return strconv.FormatInt(int64(n), 10)
+}
+
 func main() {
 	opts := Options{
 		color:  "auto",
@@ -107,20 +115,23 @@ func main() {
 		fmt.Fprintf(os.Stderr, "\nOptions:\n")
 		fmt.Fprintf(os.Stderr, "  --color=MODE      color output (MODE: auto, always, never)\n")
 		fmt.Fprintf(os.Stderr, "  --sort=TYPE       sort output (TYPE: filename, diff)\n")
-		fmt.Fprintf(os.Stderr, "  --min=VALUE       minimum diff value to show (default: show all)\n")
+		fmt.Fprintf(os.Stderr, "  --min=VALUE       minimum diff value to show (default: math.MinInt64)\n")
 		fmt.Fprintf(os.Stderr, "  --no-new          do not include new entries\n")
+		fmt.Fprintf(os.Stderr, "  --pretty-print    pretty print numbers\n")
 	}
 
 	colorOpt := flag.String("color", "auto", "")
 	sortOpt := flag.String("sort", "diff", "")
 	minDiff := flag.Int64("min", math.MinInt64, "minimum diff value to show")
-	noNew := flag.Bool("no-new", false, "Do not include new (defualt: false)")
+	noNew := flag.Bool("no-new", false, "Do not include new (default: false)")
+	prettyPrint := flag.Bool("pretty-print", false, "")
 
 	flag.Parse()
 	opts.color = *colorOpt
 	opts.sortBy = *sortOpt
 	opts.minDiff = *minDiff
 	opts.noNew = *noNew
+	opts.prettyPrint = *prettyPrint
 
 	args := flag.Args()
 	if len(args) != 2 {
@@ -209,15 +220,37 @@ func main() {
 				colorStart = resetColor
 			}
 		}
-		if entry.before == entry.after {
-			fmt.Printf("%s | %s%d (=%d-%d) (unchanged)%s\n", entry.filename, colorStart, entry.diff, entry.after, entry.before, colorEnd)
-		} else if entry.before == 0 {
-			fmt.Printf("%s | %s%d (=%d-%d) %s(new)%s\n", entry.filename, colorStart, entry.diff, entry.after, entry.before, colorNew, colorEnd)
-		} else if entry.after == 0 {
-			fmt.Printf("%s | %s%d (=%d-%d) (removed)%s\n", entry.filename, colorStart, entry.diff, entry.after, entry.before, colorEnd)
+
+		// Convert to strings if prettyPrint is enabled
+		var beforeStr, afterStr, diffStr string
+		if opts.prettyPrint {
+			beforeStr = humanize.Comma(entry.before)
+			afterStr = humanize.Comma(entry.after)
+			diffStr = humanize.Comma(entry.diff)
 		} else {
-			fmt.Printf("%s | %s%d (=%d-%d) %s\n", entry.filename, colorStart, entry.diff, entry.after, entry.before, colorEnd)
+			beforeStr = strconv.FormatInt(entry.before, 10)
+			afterStr = strconv.FormatInt(entry.after, 10)
+			diffStr = strconv.FormatInt(entry.diff, 10)
 		}
+
+		status := ""
+		switch {
+		case entry.before == entry.after:
+			status = "(unchanged)"
+		case entry.before == 0:
+			status = fmt.Sprintf("%s(new)%s", colorNew, colorEnd)
+		case entry.after == 0:
+			status = "(removed)"
+		}
+
+		fmt.Printf("%s | %s%s (=%s-%s) %s%s\n",
+			entry.filename,
+			colorStart,
+			diffStr,
+			afterStr,
+			beforeStr,
+			status,
+			colorEnd)
 	}
 
 	if useColor {
@@ -227,5 +260,9 @@ func main() {
 			colorStart = greenColor
 		}
 	}
-	fmt.Printf("Total diff: %s%d%s\n", colorStart, total, colorEnd)
+	if opts.prettyPrint {
+		fmt.Printf("Total diff: %s%s%s\n", colorStart, humanize.Comma(total), colorEnd)
+	} else {
+		fmt.Printf("Total diff: %s%d%s\n", colorStart, total, colorEnd)
+	}
 }
