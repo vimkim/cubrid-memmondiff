@@ -1,0 +1,6 @@
+- do not print unchanged
+- filter - threshold, range, high limit , filter out smaller ones, min value set
+- negative value can be turned off by default
+- comma <- human readable, with comma 1,000,000,000
+- total aggregate
+- 
