@@ -22,6 +22,7 @@ type Options struct {
 	color   string
 	sortBy  string
 	minDiff int64
+	noNew   bool
 }
 
 type customFlag struct {
@@ -102,19 +103,25 @@ func main() {
 	}
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [options] <before_file> <after_file>\n\nOptions:\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  --color=MODE               color output (MODE: auto, always, never)\n")
-		fmt.Fprintf(os.Stderr, "  --sort=TYPE                sort output (TYPE: filename, diff)\n")
+		fmt.Fprintf(os.Stderr, "Usage: %s [options] <before_file> <after_file>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "\nOptions:\n")
+		fmt.Fprintf(os.Stderr, "  --color=MODE      color output (MODE: auto, always, never)\n")
+		fmt.Fprintf(os.Stderr, "  --sort=TYPE       sort output (TYPE: filename, diff)\n")
+		fmt.Fprintf(os.Stderr, "  --min=VALUE       minimum diff value to show (default: show all)\n")
+		fmt.Fprintf(os.Stderr, "  --no-new          do not include new entries\n")
 	}
 
 	colorOpt := flag.String("color", "auto", "")
 	sortOpt := flag.String("sort", "diff", "")
 	minDiff := flag.Int64("min", math.MinInt64, "minimum diff value to show")
+	noNew := flag.Bool("no-new", false, "Do not include new (defualt: false)")
 
 	flag.Parse()
 	opts.color = *colorOpt
 	opts.sortBy = *sortOpt
 	opts.minDiff = *minDiff
+	opts.noNew = *noNew
+	fmt.Printf("%v\n", *noNew)
 
 	args := flag.Args()
 	if len(args) != 2 {
@@ -148,21 +155,27 @@ func main() {
 		diff := afterUsage - beforeUsage
 		total += diff
 
-		if diff >= *minDiff {
+		if opts.noNew && beforeUsage == 0 {
+			continue
+		}
+
+		if diff >= opts.minDiff {
 			entries = append(entries, DiffEntry{filename, diff, afterUsage, beforeUsage})
 		}
 
 	}
 
-	// Add new files that only exist in after
-	for _, filename := range afterFiles {
-		afterUsage := after[filename]
-		if _, exists := before[filename]; !exists {
-			diff := afterUsage // beforeUsage is 0
-			total += diff
+	if !opts.noNew {
+		// Add new files that only exist in after
+		for _, filename := range afterFiles {
+			afterUsage := after[filename]
+			if _, exists := before[filename]; !exists {
+				diff := afterUsage // beforeUsage is 0
+				total += diff
 
-			if diff >= *minDiff {
-				entries = append(entries, DiffEntry{filename, afterUsage, afterUsage, 0})
+				if diff >= opts.minDiff {
+					entries = append(entries, DiffEntry{filename, afterUsage, afterUsage, 0})
+				}
 			}
 		}
 	}
