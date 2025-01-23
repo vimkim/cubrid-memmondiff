@@ -243,8 +243,8 @@ func main() {
 			status = "(removed)"
 		}
 
-		fmt.Printf("%s | %s%s (=%s-%s) %s%s\n",
-			entry.filename,
+		fmt.Printf("%-50s | %s%8s (=%s-%s) %s%s\n",
+			entry.filename, // -50 left-aligns with 50 char width
 			colorStart,
 			diffStr,
 			afterStr,
