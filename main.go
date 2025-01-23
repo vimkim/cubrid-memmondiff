@@ -2,122 +2,106 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 )
 
-type MemEntry struct {
-	file    string
-	line    int
-	bytes   int
-	percent int
+type MemoryEntry struct {
+	filename string
+	usage    int64
 }
 
-var (
-	Red    = "\033[31m"
-	Green  = "\033[32m"
-	Reset  = "\033[0m"
-	colors = flag.String("color", "auto", "colorize output (always|auto|never)")
-)
-
-func shouldColorize() bool {
-	switch *colors {
-	case "always":
-		return true
-	case "never":
-		return false
-	default:
-		fileInfo, _ := os.Stdout.Stat()
-		return (fileInfo.Mode() & os.ModeCharDevice) != 0
-	}
-}
-
-func parseMemLine(line string) (*MemEntry, error) {
-	re := regexp.MustCompile(`(.*):(\d+) \| (\d+) Bytes\( *(\d+)%\)`)
-	matches := re.FindStringSubmatch(line)
-	if matches == nil {
-		return nil, fmt.Errorf("invalid format: %s", line)
-	}
-
-	lineNum, _ := strconv.Atoi(matches[2])
-	bytes, _ := strconv.Atoi(matches[3])
-	percent, _ := strconv.Atoi(matches[4])
-
-	return &MemEntry{
-		file:    matches[1],
-		line:    lineNum,
-		bytes:   bytes,
-		percent: percent,
-	}, nil
-}
-
-func readMemFile(filename string) (map[string]*MemEntry, error) {
-	file, err := os.Open(filename)
+func parseMemoryFile(filepath string) (map[string]int64, error) {
+	file, err := os.Open(filepath)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 
-	entries := make(map[string]*MemEntry)
+	result := make(map[string]int64)
 	scanner := bufio.NewScanner(file)
+
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.Contains(line, "Bytes") {
-			entry, err := parseMemLine(line)
+		if strings.Contains(line, "|") && !strings.Contains(line, "File Name") {
+			parts := strings.Split(line, "|")
+			if len(parts) != 2 {
+				continue
+			}
+
+			filename := strings.TrimSpace(parts[0])
+			usageStr := strings.TrimSpace(parts[1])
+			usageStr = strings.Split(usageStr, " ")[0]
+
+			usage, err := strconv.ParseInt(usageStr, 10, 64)
 			if err != nil {
 				continue
 			}
-			key := fmt.Sprintf("%s:%d", entry.file, entry.line)
-			entries[key] = entry
+
+			result[filename] = usage
 		}
 	}
-	return entries, nil
-}
 
-func colorize(text string, diff int, useColor bool) string {
-	if !useColor {
-		return text
-	}
-	if diff > 0 {
-		return Red + text + Reset
-	}
-	return Green + text + Reset
+	return result, scanner.Err()
 }
 
 func main() {
-	flag.Parse()
-	args := flag.Args()
-
-	if len(args) != 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s [--color=always|auto|never] <file1> <file2>\n", os.Args[0])
+	if len(os.Args) != 3 {
+		fmt.Println("Usage: program <before_file> <after_file>")
 		os.Exit(1)
 	}
 
-	entries1, err := readMemFile(args[0])
+	beforeFile := os.Args[1]
+	afterFile := os.Args[2]
+
+	// Parse both files
+	before, err := parseMemoryFile(beforeFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading %s: %v\n", args[0], err)
+		fmt.Printf("Error reading before file: %v\n", err)
 		os.Exit(1)
 	}
 
-	entries2, err := readMemFile(args[1])
+	after, err := parseMemoryFile(afterFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading %s: %v\n", args[1], err)
+		fmt.Printf("Error reading after file: %v\n", err)
 		os.Exit(1)
 	}
 
-	useColor := shouldColorize()
+	// Find differences
+	diffs := make(map[string]int64)
 
-	for key, entry1 := range entries1 {
-		if entry2, exists := entries2[key]; exists {
-			if entry1.bytes != entry2.bytes {
-				diff := entry2.bytes - entry1.bytes
-				output := fmt.Sprintf("%s:%d | %d (=%d-%d)",
-					entry1.file, entry1.line, diff, entry2.bytes, entry1.bytes)
-				fmt.Println(colorize(output, diff, useColor))
+	// Check for entries that exist in both files or only in after
+	for filename, afterUsage := range after {
+		if beforeUsage, exists := before[filename]; exists {
+			diff := afterUsage - beforeUsage
+			if diff != 0 {
+				diffs[filename] = diff
+			}
+		} else {
+			// New entry in after
+			diffs[filename] = afterUsage
+		}
+	}
+
+	// Check for entries that only exist in before
+	for filename, beforeUsage := range before {
+		if _, exists := after[filename]; !exists {
+			diffs[filename] = -beforeUsage
+		}
+	}
+
+	// Print differences
+	for filename, diff := range diffs {
+		originalValue := before[filename]
+		if diff > 0 {
+			fmt.Printf("%s | %d (=%d-%d)\n", filename, diff, after[filename], originalValue)
+		} else {
+			if _, exists := after[filename]; exists {
+				fmt.Printf("%s | %d (=%d-%d)\n", filename, diff, after[filename], originalValue)
+			} else {
+				fmt.Printf("%s | %d (removed)\n", filename, diff)
 			}
 		}
 	}
