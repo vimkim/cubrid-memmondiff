@@ -2,7 +2,7 @@
 set -euo pipefail
 
 TEST_NAME=$(basename "$0")
-TEST_DIR="tests/testdata"
+TEST_DIR="./testdata"
 BINARY="memmondiff"
 ACTUAL="${TEST_DIR}/actual_ycsb.txt"
 EXPECTED="${TEST_DIR}/expected_ycsb.txt"
