@@ -8,8 +8,8 @@
 Usage: ./memmondiff [options] <before_file> <after_file>
 
 Options:
-  --color=MODE      color output (MODE: auto, always, never)
-  --sort=TYPE       sort output (TYPE: filename, diff)
+  --color=MODE      color output (MODE: auto(default), always, never)
+  --sort=TYPE       sort output (TYPE: diff(default), filename)
   --min=VALUE       minimum diff value to show (default: math.MinInt64)
   --no-new          do not include new entries
   --pretty-print    pretty print numbers
@@ -43,7 +43,7 @@ just run # use casey/just
 
 #### Filtering Examples
 
-##### No New Entries, and Only Diff >= 10000
+##### Only Diff >= 10000
 
 ![image](https://github.com/user-attachments/assets/fa2e18cc-244a-4979-b5f3-47c49a97773a)
 
