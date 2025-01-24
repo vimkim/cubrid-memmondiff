@@ -67,7 +67,11 @@ memmondiff --raw-query "SELECT SUM(diff) FROM entries WHERE diff >= 10000" befor
 
 ### Linux
 
-![image](https://github.com/user-attachments/assets/fa2e18cc-244a-4979-b5f3-47c49a97773a)
+![image](https://github.com/user-attachments/assets/9c6e3654-c8cb-4cbe-8233-cc8ff3638e9b)
+
+#### Raw Query Mode
+
+![image](https://github.com/user-attachments/assets/e39c537a-941b-46c7-afc1-a2a33c3e1da6)
 
 ### Windows
 
