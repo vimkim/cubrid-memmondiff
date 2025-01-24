@@ -17,7 +17,7 @@ run-min-10: build
     ./memmondiff --min=10 ./testdata/ycsb_before ./testdata/ycsb_after
 
 run-no-new: build
-    ./memmondiff --no-new=true --min=10000 ./testdata/ycsb_before ./testdata/ycsb_after
+    ./memmondiff --no-new --min=10000 ./testdata/ycsb_before ./testdata/ycsb_after
 
 tests: test-ycsb
 

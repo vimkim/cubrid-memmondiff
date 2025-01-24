@@ -175,14 +175,14 @@ func main() {
 
 	}
 
-	if !opts.noNew {
-		// Add new files that only exist in after
-		for _, filename := range afterFiles {
-			afterUsage := after[filename]
-			if _, exists := before[filename]; !exists {
-				diff := afterUsage // beforeUsage is 0
-				total += diff
+	// Add new files that only exist in after
+	for _, filename := range afterFiles {
+		afterUsage := after[filename]
+		if _, exists := before[filename]; !exists {
+			diff := afterUsage // beforeUsage is 0
+			total += diff
 
+			if !opts.noNew {
 				if diff >= opts.minDiff {
 					entries = append(entries, DiffEntry{filename, afterUsage, afterUsage, 0})
 				}
@@ -261,8 +261,8 @@ func main() {
 		}
 	}
 	if opts.prettyPrint {
-		fmt.Printf("Total diff: %s%s%s\n", colorStart, humanize.Comma(total), colorEnd)
+		fmt.Printf("# Total diff (regardless of filters): %s%s%s\n", colorStart, humanize.Comma(total), colorEnd)
 	} else {
-		fmt.Printf("Total diff: %s%d%s\n", colorStart, total, colorEnd)
+		fmt.Printf("# Total diff (regardless of filters): %s%d%s\n", colorStart, total, colorEnd)
 	}
 }
