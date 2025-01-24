@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"database/sql"
-	"flag"
 	"fmt"
 	"math"
 	"os"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -28,6 +28,7 @@ type Options struct {
 	minDiff     int64
 	noNew       bool
 	prettyPrint bool
+	rawQuery    string
 }
 
 type customFlag struct {
@@ -153,181 +154,175 @@ func main() {
 		sortBy: "diff",
 	}
 
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [options] <before_file> <after_file>\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "\nOptions:\n")
-		fmt.Fprintf(os.Stderr, "  --color=MODE      color output (MODE: auto, always, never)\n")
-		fmt.Fprintf(os.Stderr, "  (deprecated) --sort=TYPE       sort output (TYPE: filename, diff)\n")
-		fmt.Fprintf(os.Stderr, "  (deprecated) --min=VALUE       minimum diff value to show (default: math.MinInt64)\n")
-		fmt.Fprintf(os.Stderr, "  (deprecated) --no-new          do not include new entries\n")
-		fmt.Fprintf(os.Stderr, "  --pretty-print    pretty print numbers\n")
-		fmt.Fprintf(os.Stderr, "  --sql=FILTER      SQL WHERE clause for filtering (e.g. 'diff >= 10000 AND filename LIKE '%%session%%')\n")
-	}
+	rootCmd := &cobra.Command{
+		Use:   "memmondiff [flags] <before_file> <after_file>",
+		Short: "Compare memory snapshots",
+		Args:  cobra.ExactArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			beforeFile := args[0]
+			afterFile := args[1]
 
-	colorOpt := flag.String("color", "auto", "")
-	sortOpt := flag.String("sort", "diff", "")
-	minDiff := flag.Int64("min", math.MinInt64, "minimum diff value to show")
-	noNew := flag.Bool("no-new", false, "Do not include new (default: false)")
-	prettyPrint := flag.Bool("pretty-print", false, "")
-	sqlFilter := flag.String("sql", "", "SQL WHERE clause for filtering (e.g. 'diff > 1000')")
+			before, beforeFiles, err := parseMemoryFile(beforeFile)
+			if err != nil {
+				fmt.Printf("Error reading before file: %v\n", err)
+				os.Exit(1)
+			}
 
-	flag.Parse()
-	opts.color = *colorOpt
-	opts.sortBy = *sortOpt
-	opts.minDiff = *minDiff
-	opts.noNew = *noNew
-	opts.prettyPrint = *prettyPrint
-	opts.sqlFilter = *sqlFilter
+			after, afterFiles, err := parseMemoryFile(afterFile)
+			if err != nil {
+				fmt.Printf("Error reading after file: %v\n", err)
+				os.Exit(1)
+			}
+			// Rest of your code
+			entries := make([]DiffEntry, 0)
 
-	args := flag.Args()
-	if len(args) != 2 {
-		flag.Usage()
-		os.Exit(1)
-	}
+			var total int64
 
-	beforeFile := args[0]
-	afterFile := args[1]
+			// Process files that exist in before
+			for _, filename := range beforeFiles {
+				beforeUsage := before[filename]
+				afterUsage := after[filename]
+				diff := afterUsage - beforeUsage
+				total += diff
 
-	before, beforeFiles, err := parseMemoryFile(beforeFile)
-	if err != nil {
-		fmt.Printf("Error reading before file: %v\n", err)
-		os.Exit(1)
-	}
+				if opts.noNew && beforeUsage == 0 {
+					continue
+				}
 
-	after, afterFiles, err := parseMemoryFile(afterFile)
-	if err != nil {
-		fmt.Printf("Error reading after file: %v\n", err)
-		os.Exit(1)
-	}
-
-	entries := make([]DiffEntry, 0)
-
-	var total int64
-
-	// Process files that exist in before
-	for _, filename := range beforeFiles {
-		beforeUsage := before[filename]
-		afterUsage := after[filename]
-		diff := afterUsage - beforeUsage
-		total += diff
-
-		if opts.noNew && beforeUsage == 0 {
-			continue
-		}
-
-		if diff >= opts.minDiff {
-			entries = append(entries, DiffEntry{filename, diff, afterUsage, beforeUsage})
-		}
-
-	}
-
-	// Add new files that only exist in after
-	for _, filename := range afterFiles {
-		afterUsage := after[filename]
-		if _, exists := before[filename]; !exists {
-			diff := afterUsage // beforeUsage is 0
-			total += diff
-
-			if !opts.noNew {
 				if diff >= opts.minDiff {
-					entries = append(entries, DiffEntry{filename, afterUsage, afterUsage, 0})
+					entries = append(entries, DiffEntry{filename, diff, afterUsage, beforeUsage})
+				}
+
+			}
+
+			// Add new files that only exist in after
+			for _, filename := range afterFiles {
+				afterUsage := after[filename]
+				if _, exists := before[filename]; !exists {
+					diff := afterUsage // beforeUsage is 0
+					total += diff
+
+					if !opts.noNew {
+						if diff >= opts.minDiff {
+							entries = append(entries, DiffEntry{filename, afterUsage, afterUsage, 0})
+						}
+					}
 				}
 			}
-		}
-	}
 
-	// After creating entries slice and before printing:
-	db, err := setupDatabase(entries)
-	if err != nil {
-		fmt.Printf("Error setting up database: %v\n", err)
-		os.Exit(1)
-	}
-	defer db.Close()
-
-	// Replace existing filtering logic with SQL query
-	query := "SELECT filename, diff, after, before FROM entries"
-	if opts.sqlFilter != "" {
-		query += " WHERE " + opts.sqlFilter
-	}
-	switch opts.sortBy {
-	case "diff":
-		query += " ORDER BY diff DESC"
-	case "filename":
-		query += " ORDER BY filename"
-	}
-
-	rows, err := db.Query(query)
-	if err != nil {
-		fmt.Printf("Error executing query: %v\n", err)
-		os.Exit(1)
-	}
-	defer rows.Close()
-
-	useColor := shouldUseColor(opts.color)
-	colorEnd, colorNew := "", ""
-	if useColor {
-		colorEnd, colorNew = resetColor, yellowColor
-	}
-
-	for rows.Next() {
-		var entry DiffEntry
-		err := rows.Scan(&entry.filename, &entry.diff, &entry.after, &entry.before)
-		if err != nil {
-			fmt.Printf("Error scanning row: %v\n", err)
-			continue
-		}
-
-		var beforeStr, afterStr, diffStr string
-		if opts.prettyPrint {
-			beforeStr = humanize.Comma(entry.before)
-			afterStr = humanize.Comma(entry.after)
-			diffStr = humanize.Comma(entry.diff)
-		} else {
-			beforeStr = strconv.FormatInt(entry.before, 10)
-			afterStr = strconv.FormatInt(entry.after, 10)
-			diffStr = strconv.FormatInt(entry.diff, 10)
-		}
-
-		colorStart := ""
-		if useColor {
-			switch {
-			case entry.diff > 0:
-				colorStart = redColor
-			case entry.diff < 0:
-				colorStart = greenColor
-			default:
-				colorStart = resetColor
+			// After creating entries slice and before printing:
+			db, err := setupDatabase(entries)
+			if err != nil {
+				fmt.Printf("Error setting up database: %v\n", err)
+				os.Exit(1)
 			}
-		}
+			defer db.Close()
 
-		status := ""
-		switch {
-		case entry.before == entry.after:
-			status = "(unchanged)"
-		case entry.before == 0:
-			status = fmt.Sprintf("%s(new)%s", colorNew, colorEnd)
-		case entry.after == 0:
-			status = "(removed)"
-		}
+			// Replace existing filtering logic with SQL query
+			query := "SELECT filename, diff, after, before FROM entries"
+			if opts.sqlFilter != "" {
+				query += " WHERE " + opts.sqlFilter
+			}
+			switch opts.sortBy {
+			case "diff":
+				query += " ORDER BY diff DESC"
+			case "filename":
+				query += " ORDER BY filename"
+			}
 
-		fmt.Printf("%-50s | %s%12s (=%12s -%12s) %s%s\n",
-			entry.filename,
-			colorStart,
-			diffStr,
-			afterStr,
-			beforeStr,
-			status,
-			colorEnd)
+			if opts.rawQuery != "" {
+				query = opts.rawQuery
+			}
+
+			fmt.Printf("Query: %s\n", query)
+
+			rows, err := db.Query(query)
+			if err != nil {
+				fmt.Printf("Error executing query: %v\n", err)
+				os.Exit(1)
+			}
+			defer rows.Close()
+
+			useColor := shouldUseColor(opts.color)
+			colorEnd, colorNew := "", ""
+			if useColor {
+				colorEnd, colorNew = resetColor, yellowColor
+			}
+
+			for rows.Next() {
+				var entry DiffEntry
+				err := rows.Scan(&entry.filename, &entry.diff, &entry.after, &entry.before)
+				if err != nil {
+					fmt.Printf("Error scanning row: %v\n", err)
+					continue
+				}
+
+				var beforeStr, afterStr, diffStr string
+				if opts.prettyPrint {
+					beforeStr = humanize.Comma(entry.before)
+					afterStr = humanize.Comma(entry.after)
+					diffStr = humanize.Comma(entry.diff)
+				} else {
+					beforeStr = strconv.FormatInt(entry.before, 10)
+					afterStr = strconv.FormatInt(entry.after, 10)
+					diffStr = strconv.FormatInt(entry.diff, 10)
+				}
+
+				colorStart := ""
+				if useColor {
+					switch {
+					case entry.diff > 0:
+						colorStart = redColor
+					case entry.diff < 0:
+						colorStart = greenColor
+					default:
+						colorStart = resetColor
+					}
+				}
+
+				status := ""
+				switch {
+				case entry.before == entry.after:
+					status = "(unchanged)"
+				case entry.before == 0:
+					status = fmt.Sprintf("%s(new)%s", colorNew, colorEnd)
+				case entry.after == 0:
+					status = "(removed)"
+				}
+
+				fmt.Printf("%-50s | %s%12s (=%12s -%12s) %s%s\n",
+					entry.filename,
+					colorStart,
+					diffStr,
+					afterStr,
+					beforeStr,
+					status,
+					colorEnd)
+			}
+
+			totalStr := strconv.FormatInt(total, 10)
+
+			if opts.prettyPrint {
+				totalStr = humanize.Comma(total)
+			}
+
+			totalStr = colorize(totalStr, total, opts)
+			fmt.Printf("\n# Total Diff: %s\n", totalStr)
+		},
 	}
 
-	totalStr := strconv.FormatInt(total, 10)
+	flags := rootCmd.Flags()
+	flags.StringVar(&opts.color, "color", "auto", "color output (MODE: auto, always, never)")
+	flags.StringVar(&opts.sortBy, "sort", "diff", "(deprecated) sort output (TYPE: filename, diff)")
+	flags.Int64Var(&opts.minDiff, "min", math.MinInt64, "(deprecated) minimum diff value to show")
+	flags.BoolVar(&opts.noNew, "no-new", false, "(deprecated) do not include new entries")
+	flags.BoolVar(&opts.prettyPrint, "pretty-print", false, "pretty print numbers")
+	flags.StringVar(&opts.sqlFilter, "sql", "", "SQL WHERE clause for filtering")
+	flags.StringVar(&opts.rawQuery, "raw-query", "", "Type Raw SQL Query for full control")
 
-	if opts.prettyPrint {
-		totalStr = humanize.Comma(total)
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
 	}
-
-	totalStr = colorize(totalStr, total, opts)
-	fmt.Printf("\n# Total Diff: %s\n", totalStr)
 }
 
 func colorize(text string, number int64, opts Options) string {
