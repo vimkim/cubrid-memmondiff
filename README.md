@@ -35,7 +35,7 @@ memmondiff [flags] <before_file> <after_file>
 - `--color`: Output coloring (auto, always, never)
 - `--pretty-print`: Format numbers with commas
 - `--sql`: Filter results using SQL WHERE clause
-- `--raw-query`: Execute arbitrary SQL queries against the diff data
+- `--raw-query`: (experimental) Execute arbitrary SQL queries against the diff data
 
 ### Basic Examples
 
@@ -61,6 +61,17 @@ memmondiff --sql "diff >= 5000 AND filename NOT LIKE '%temp%'" before.txt after.
 
 # Raw SQL queries
 memmondiff --raw-query "SELECT SUM(diff) FROM entries WHERE diff >= 10000" before.txt after.txt
+```
+
+You can refer to the DDL used to create the internal temporary memory database to customize your raw query (which is subject to change).
+
+```sql
+CREATE TABLE entries (
+    filename TEXT,
+    diff INTEGER,
+    after INTEGER,
+    before INTEGER
+)
 ```
 
 ## Screenshots

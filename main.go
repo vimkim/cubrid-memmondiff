@@ -322,7 +322,7 @@ func main() {
 	flags.BoolVar(&opts.noNew, "no-new", false, "(deprecated) do not include new entries")
 	flags.BoolVar(&opts.prettyPrint, "pretty-print", false, "pretty print numbers")
 	flags.StringVar(&opts.sqlFilter, "sql", "", "SQL WHERE clause for filtering")
-	flags.StringVar(&opts.rawQuery, "raw-query", "", "Type Raw SQL Query for full control")
+	flags.StringVar(&opts.rawQuery, "raw-query", "", "(experimental) Type Raw SQL Query for full control")
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
