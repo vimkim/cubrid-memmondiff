@@ -319,4 +319,31 @@ func main() {
 			status,
 			colorEnd)
 	}
+
+	totalStr := strconv.FormatInt(total, 10)
+
+	if opts.prettyPrint {
+		totalStr = humanize.Comma(total)
+	}
+
+	totalStr = colorize(totalStr, total, opts)
+	fmt.Printf("\n# Total Diff: %s\n", totalStr)
+}
+
+func colorize(text string, number int64, opts Options) string {
+	useColor := shouldUseColor(opts.color)
+	if !useColor {
+		return text
+	}
+	colorEnd := resetColor
+	colorStart := ""
+	switch {
+	case number > 0:
+		colorStart = redColor
+	case number < 0:
+		colorStart = greenColor
+	default:
+		colorStart = resetColor
+	}
+	return fmt.Sprintf("%s%s%s", colorStart, text, colorEnd)
 }
