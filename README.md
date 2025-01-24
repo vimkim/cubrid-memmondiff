@@ -9,7 +9,7 @@ Difftool for CUBRID memmon that helps analyze memory usage changes with powerful
 Download the latest release from GitHub Releases:
 
 ```bash
-wget https://github.com/vimkim/cubrid-memmondiff/releases/download/v0.0.2/memmondiff-linux-amd64
+wget https://github.com/vimkim/cubrid-memmondiff/releases/latest/download/memmondiff-linux-amd64
 ```
 
 ### Using Go
