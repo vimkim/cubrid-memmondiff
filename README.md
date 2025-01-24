@@ -1,10 +1,35 @@
 # memmondiff
 
-## Difftool for CUBRID memmon
+Difftool for CUBRID memmon that helps analyze memory usage changes with powerful SQL filtering.
 
-### Usage
+## Installation
 
-```txt
+### Pre-built Binary
+
+Download the latest release from GitHub Releases:
+
+```bash
+wget https://github.com/vimkim/cubrid-memmondiff/releases/download/v0.0.2/memmondiff-linux-amd64
+```
+
+### Using Go
+
+```bash
+go install github.com/vimkim/cubrid-memmondiff@latest
+```
+
+### Build from Source
+
+```bash
+git clone https://github.com/vimkim/cubrid-memmondiff
+cd cubrid-memmondiff
+go build .
+# Or with just: just run
+```
+
+## Usage
+
+```text
 Usage: ./memmondiff [options] <before_file> <after_file>
 
 Options:
@@ -13,50 +38,50 @@ Options:
   --min=VALUE       minimum diff value to show (default: math.MinInt64)
   --no-new          do not include new entries
   --pretty-print    pretty print numbers
+  --sql=FILTER      SQL WHERE clause for filtering (e.g. 'diff >= 10000 AND filename LIKE '%session%')
 ```
 
-### Installation
+## SQL Filtering Examples
+
+### Show Large Memory Changes
 
 ```bash
-# Binary
-# Just download the latest release from GitHub Releases
-# For example,
-wget https://github.com/vimkim/cubrid-memmondiff/releases/download/v0.0.2/memmondiff-linux-amd64
-
-###
-
-# Or use go module,
-go install github.com/vimkim/cubrid-memmondiff@latest
-
-###
-
-# Or build from source,
-git clone https://github.com/vimkim/cubrid-memmondiff
-cd cubrid-memmondiff
-go build .
-
-###
-
-# You can use Casey/just
-just run # use casey/just
+./memmondiff --sql "diff >= 10000" before.txt after.txt
 ```
 
-#### Filtering Examples
+### Filter by File Pattern
 
-##### Only Diff >= 10000
+```bash
+./memmondiff --sql "filename LIKE '%heap%'" before.txt after.txt
+```
+
+### Complex Conditions
+
+```bash
+./memmondiff --sql "diff >= 5000 AND filename NOT LIKE '%temp%'" before.txt after.txt
+```
+
+## Screenshots
+
+### Linux
 
 ![image](https://github.com/user-attachments/assets/fa2e18cc-244a-4979-b5f3-47c49a97773a)
 
-### Supported Platforms
+### Windows
+
+Coming Soon (used to work for v0.0.6 or before)
+
+## Supported Platforms
 
 - Linux
 - Windows
-- MacOs (theoretically)
+- macOS (theoretically)
 
-#### Linux
-
-![image](https://github.com/user-attachments/assets/d9e87217-9eaf-4e69-8d4a-26080f935b4f)
-
-#### Windows
-
-![image](https://github.com/user-attachments/assets/b449799c-515e-43e6-b1ce-2aa5815d00f8)
+```text
+The improvements include:
+- Added description of SQL filtering capability
+- Structured SQL examples section
+- Clearer installation options
+- Better organization of sections
+- Added practical SQL filtering examples
+```

@@ -161,6 +161,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  --min=VALUE       minimum diff value to show (default: math.MinInt64)\n")
 		fmt.Fprintf(os.Stderr, "  --no-new          do not include new entries\n")
 		fmt.Fprintf(os.Stderr, "  --pretty-print    pretty print numbers\n")
+		fmt.Fprintf(os.Stderr, "  --sql=FILTER      SQL WHERE clause for filtering (e.g. 'diff >= 10000 AND filename LIKE '%%session%%')\n")
 	}
 
 	colorOpt := flag.String("color", "auto", "")
