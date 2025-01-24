@@ -38,3 +38,12 @@ pretty-print: build
 
 run-sql-min-10000-no-new: build
     ./memmondiff --sql="diff >= 10000 AND before <> 0" ./testdata/ycsb_before ./testdata/ycsb_after
+
+run-raw-query: build
+    ./memmondiff --raw-query='SELECT filename, diff, after, before FROM entries WHERE diff >= 10000 AND before <> 0 ORDER BY diff DESC' ./testdata/ycsb_before ./testdata/ycsb_after
+
+run-raw-query-filtered-total: build
+    ./memmondiff --raw-query='SELECT sum(diff) FROM entries WHERE diff >= 10000 AND before <> 0 ORDER BY diff DESC' ./testdata/ycsb_before ./testdata/ycsb_after
+
+run-raw-query-total: build
+    ./memmondiff --raw-query='SELECT sum(diff) FROM entries' ./testdata/ycsb_before ./testdata/ycsb_after

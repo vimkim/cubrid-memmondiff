@@ -218,96 +218,100 @@ func main() {
 			}
 			defer db.Close()
 
-			// Replace existing filtering logic with SQL query
-			query := "SELECT filename, diff, after, before FROM entries"
-			if opts.sqlFilter != "" {
-				query += " WHERE " + opts.sqlFilter
-			}
-			switch opts.sortBy {
-			case "diff":
-				query += " ORDER BY diff DESC"
-			case "filename":
-				query += " ORDER BY filename"
-			}
-
+			var query string
 			if opts.rawQuery != "" {
-				query = opts.rawQuery
-			}
+				printRawQuery(db, opts)
+				return
 
-			fmt.Printf("Query: %s\n", query)
+			} else {
 
-			rows, err := db.Query(query)
-			if err != nil {
-				fmt.Printf("Error executing query: %v\n", err)
-				os.Exit(1)
-			}
-			defer rows.Close()
+				// Replace existing filtering logic with SQL query
+				query = "SELECT filename, diff, after, before FROM entries"
+				if opts.sqlFilter != "" {
+					query += " WHERE " + opts.sqlFilter
+				}
+				switch opts.sortBy {
+				case "diff":
+					query += " ORDER BY diff DESC"
+				case "filename":
+					query += " ORDER BY filename"
+				}
 
-			useColor := shouldUseColor(opts.color)
-			colorEnd, colorNew := "", ""
-			if useColor {
-				colorEnd, colorNew = resetColor, yellowColor
-			}
+				fmt.Printf("Query: %s\n", query)
 
-			for rows.Next() {
-				var entry DiffEntry
-				err := rows.Scan(&entry.filename, &entry.diff, &entry.after, &entry.before)
+				rows, err := db.Query(query)
 				if err != nil {
-					fmt.Printf("Error scanning row: %v\n", err)
-					continue
+					fmt.Printf("Error executing query: %v\n", err)
+					os.Exit(1)
 				}
+				defer rows.Close()
 
-				var beforeStr, afterStr, diffStr string
-				if opts.prettyPrint {
-					beforeStr = humanize.Comma(entry.before)
-					afterStr = humanize.Comma(entry.after)
-					diffStr = humanize.Comma(entry.diff)
-				} else {
-					beforeStr = strconv.FormatInt(entry.before, 10)
-					afterStr = strconv.FormatInt(entry.after, 10)
-					diffStr = strconv.FormatInt(entry.diff, 10)
-				}
-
-				colorStart := ""
+				useColor := shouldUseColor(opts.color)
+				colorEnd, colorNew := "", ""
 				if useColor {
-					switch {
-					case entry.diff > 0:
-						colorStart = redColor
-					case entry.diff < 0:
-						colorStart = greenColor
-					default:
-						colorStart = resetColor
+					colorEnd, colorNew = resetColor, yellowColor
+				}
+
+				for rows.Next() {
+					var entry DiffEntry
+					err := rows.Scan(&entry.filename, &entry.diff, &entry.after, &entry.before)
+					if err != nil {
+						fmt.Printf("Error scanning row: %v\n", err)
+						continue
 					}
+
+					var beforeStr, afterStr, diffStr string
+					if opts.prettyPrint {
+						beforeStr = humanize.Comma(entry.before)
+						afterStr = humanize.Comma(entry.after)
+						diffStr = humanize.Comma(entry.diff)
+					} else {
+						beforeStr = strconv.FormatInt(entry.before, 10)
+						afterStr = strconv.FormatInt(entry.after, 10)
+						diffStr = strconv.FormatInt(entry.diff, 10)
+					}
+
+					colorStart := ""
+					if useColor {
+						switch {
+						case entry.diff > 0:
+							colorStart = redColor
+						case entry.diff < 0:
+							colorStart = greenColor
+						default:
+							colorStart = resetColor
+						}
+					}
+
+					status := ""
+					switch {
+					case entry.before == entry.after:
+						status = "(unchanged)"
+					case entry.before == 0:
+						status = fmt.Sprintf("%s(new)%s", colorNew, colorEnd)
+					case entry.after == 0:
+						status = "(removed)"
+					}
+
+					fmt.Printf("%-50s | %s%12s (=%12s -%12s) %s%s\n",
+						entry.filename,
+						colorStart,
+						diffStr,
+						afterStr,
+						beforeStr,
+						status,
+						colorEnd)
 				}
 
-				status := ""
-				switch {
-				case entry.before == entry.after:
-					status = "(unchanged)"
-				case entry.before == 0:
-					status = fmt.Sprintf("%s(new)%s", colorNew, colorEnd)
-				case entry.after == 0:
-					status = "(removed)"
+				totalStr := strconv.FormatInt(total, 10)
+
+				if opts.prettyPrint {
+					totalStr = humanize.Comma(total)
 				}
 
-				fmt.Printf("%-50s | %s%12s (=%12s -%12s) %s%s\n",
-					entry.filename,
-					colorStart,
-					diffStr,
-					afterStr,
-					beforeStr,
-					status,
-					colorEnd)
+				totalStr = colorize(totalStr, total, opts)
+				fmt.Printf("\n# Total Diff: %s\n", totalStr)
 			}
-
-			totalStr := strconv.FormatInt(total, 10)
-
-			if opts.prettyPrint {
-				totalStr = humanize.Comma(total)
-			}
-
-			totalStr = colorize(totalStr, total, opts)
-			fmt.Printf("\n# Total Diff: %s\n", totalStr)
 		},
 	}
 
@@ -341,4 +345,47 @@ func colorize(text string, number int64, opts Options) string {
 		colorStart = resetColor
 	}
 	return fmt.Sprintf("%s%s%s", colorStart, text, colorEnd)
+}
+
+func printRawQuery(db *sql.DB, opts Options) error {
+	rows, err := db.Query(opts.rawQuery)
+	if err != nil {
+		return fmt.Errorf("executing query: %w", err)
+	}
+	defer rows.Close()
+
+	cols, err := rows.Columns()
+	if err != nil {
+		return fmt.Errorf("getting columns: %w", err)
+	}
+
+	// Create result holders
+	values := make([]interface{}, len(cols))
+	row := make([]interface{}, len(cols))
+	for i := range values {
+		row[i] = &values[i]
+	}
+
+	// Print header
+	fmt.Println(strings.Join(cols, "|"))
+	fmt.Println(strings.Repeat("-", len(strings.Join(cols, "|"))))
+
+	// Print rows
+	for rows.Next() {
+		if err := rows.Scan(row...); err != nil {
+			return fmt.Errorf("scanning row: %w", err)
+		}
+
+		result := make([]string, len(cols))
+		for i, val := range values {
+			if val == nil {
+				result[i] = "NULL"
+				continue
+			}
+			result[i] = fmt.Sprint(val)
+		}
+		fmt.Println(strings.Join(result, "|"))
+	}
+
+	return rows.Err()
 }
