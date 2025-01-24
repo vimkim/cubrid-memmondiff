@@ -1,18 +1,16 @@
 # memmondiff
 
-Difftool for CUBRID memmon that helps analyze memory usage changes with powerful SQL filtering.
+Command-line tool for analyzing memory usage changes in CUBRID memmon files using SQL filtering.
 
 ## Installation
 
 ### Pre-built Binary
 
-Download the latest release from GitHub Releases:
-
 ```bash
 wget https://github.com/vimkim/cubrid-memmondiff/releases/latest/download/memmondiff-linux-amd64
 ```
 
-### Using Go
+### Go Install
 
 ```bash
 go install github.com/vimkim/cubrid-memmondiff@latest
@@ -24,41 +22,45 @@ go install github.com/vimkim/cubrid-memmondiff@latest
 git clone https://github.com/vimkim/cubrid-memmondiff
 cd cubrid-memmondiff
 go build .
-# Or with just: just run
 ```
 
 ## Usage
 
-```text
-Usage: ./memmondiff [options] <before_file> <after_file>
-
-Options:
-  --color=MODE      color output (MODE: auto(default), always, never)
-  (deprecated) --sort=TYPE       sort output (TYPE: diff(default), filename)
-  (deprecated) --min=VALUE       minimum diff value to show (default: math.MinInt64)
-  (deprecated) --no-new          do not include new entries
-  --pretty-print    pretty print numbers
-  --sql=FILTER      SQL WHERE clause for filtering (e.g. 'diff >= 10000 AND filename LIKE '%session%')
+```bash
+memmondiff [flags] <before_file> <after_file>
 ```
 
-## SQL Filtering Examples
+### Flags
 
-### Show Large Memory Changes
+- `--color`: Output coloring (auto, always, never)
+- `--pretty-print`: Format numbers with commas
+- `--sql`: Filter results using SQL WHERE clause
+- `--raw-query`: Execute arbitrary SQL queries against the diff data
+
+### Basic Examples
 
 ```bash
-./memmondiff --sql "diff >= 10000" before.txt after.txt
+# Compare two memmon files
+memmondiff before.txt after.txt
+
+# Pretty print numbers
+memmondiff --pretty-print before.txt after.txt
+
+# Filter large memory changes
+memmondiff --sql "diff >= 10000" before.txt after.txt
 ```
 
-### Filter by File Pattern
+### Advanced SQL Filtering
 
 ```bash
-./memmondiff --sql "filename LIKE '%heap%'" before.txt after.txt
-```
+# Filter by filename pattern
+memmondiff --sql "filename LIKE '%heap%'" before.txt after.txt
 
-### Complex Conditions
+# Complex conditions
+memmondiff --sql "diff >= 5000 AND filename NOT LIKE '%temp%'" before.txt after.txt
 
-```bash
-./memmondiff --sql "diff >= 5000 AND filename NOT LIKE '%temp%'" before.txt after.txt
+# Raw SQL queries
+memmondiff --raw-query "SELECT SUM(diff) FROM entries WHERE diff >= 10000" before.txt after.txt
 ```
 
 ## Screenshots
@@ -70,19 +72,10 @@ Options:
 ### Windows
 
 - Supported from v0.1.1
-- In order to build from source, one must use 'CGO_ENABLED=1'. I recommend using zig compiler (refer to justfile for details).
+- For building from source, use 'CGO_ENABLED=1'. Zig compiler recommended (see justfile).
 
 ## Supported Platforms
 
 - Linux
-- Windows
-- macOS (theoretically)
-
-```text
-The improvements include:
-- Added description of SQL filtering capability
-- Structured SQL examples section
-- Clearer installation options
-- Better organization of sections
-- Added practical SQL filtering examples
-```
+- Windows (requires CGO_ENABLED=1)
+- macOS
