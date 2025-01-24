@@ -69,7 +69,8 @@ Options:
 
 ### Windows
 
-Coming Soon (used to work for v0.0.6 or before)
+- Supported from v0.1.1
+- In order to build from source, one must use 'CGO_ENABLED=1'. I recommend using zig compiler (refer to justfile for details).
 
 ## Supported Platforms
 
