@@ -29,3 +29,6 @@ help: build
 
 pretty-print: build
     ./memmondiff --min=10000 --pretty-print ./testdata/ycsb_before ./testdata/ycsb_after
+
+run-sql-min-10000-no-new: build
+    ./memmondiff --sql="diff >= 10000 AND before <> 0" ./testdata/ycsb_before ./testdata/ycsb_after
