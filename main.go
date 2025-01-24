@@ -157,9 +157,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [options] <before_file> <after_file>\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "\nOptions:\n")
 		fmt.Fprintf(os.Stderr, "  --color=MODE      color output (MODE: auto, always, never)\n")
-		fmt.Fprintf(os.Stderr, "  --sort=TYPE       sort output (TYPE: filename, diff)\n")
-		fmt.Fprintf(os.Stderr, "  --min=VALUE       minimum diff value to show (default: math.MinInt64)\n")
-		fmt.Fprintf(os.Stderr, "  --no-new          do not include new entries\n")
+		fmt.Fprintf(os.Stderr, "  (deprecated) --sort=TYPE       sort output (TYPE: filename, diff)\n")
+		fmt.Fprintf(os.Stderr, "  (deprecated) --min=VALUE       minimum diff value to show (default: math.MinInt64)\n")
+		fmt.Fprintf(os.Stderr, "  (deprecated) --no-new          do not include new entries\n")
 		fmt.Fprintf(os.Stderr, "  --pretty-print    pretty print numbers\n")
 		fmt.Fprintf(os.Stderr, "  --sql=FILTER      SQL WHERE clause for filtering (e.g. 'diff >= 10000 AND filename LIKE '%%session%%')\n")
 	}

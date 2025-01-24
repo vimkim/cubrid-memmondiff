@@ -34,9 +34,9 @@ Usage: ./memmondiff [options] <before_file> <after_file>
 
 Options:
   --color=MODE      color output (MODE: auto(default), always, never)
-  --sort=TYPE       sort output (TYPE: diff(default), filename)
-  --min=VALUE       minimum diff value to show (default: math.MinInt64)
-  --no-new          do not include new entries
+  (deprecated) --sort=TYPE       sort output (TYPE: diff(default), filename)
+  (deprecated) --min=VALUE       minimum diff value to show (default: math.MinInt64)
+  (deprecated) --no-new          do not include new entries
   --pretty-print    pretty print numbers
   --sql=FILTER      SQL WHERE clause for filtering (e.g. 'diff >= 10000 AND filename LIKE '%session%')
 ```

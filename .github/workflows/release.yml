@@ -20,13 +20,13 @@ jobs:
           go-version: "1.23.2"
 
       - name: Build Linux binary
-        run: GOOS=linux GOARCH=amd64 go build -o memmondiff-linux-amd64
+        run: CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o memmondiff-linux-amd64
 
-      - name: Build Windows binary
-        run: CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -o memmondiff-windows-amd64.exe
+      # - name: Build Windows binary
+      #   run: CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc GOOS=windows GOARCH=amd64 go build -o memmondiff-windows-amd64.exe
 
       - name: Build macOS binary
-        run: GOOS=darwin GOARCH=amd64 go build -o memmondiff-darwin-amd64
+        run: CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -o memmondiff-darwin-amd64
 
       - name: Create Release
         env:
