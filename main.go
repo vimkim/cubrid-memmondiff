@@ -2,15 +2,16 @@ package main
 
 import (
 	"bufio"
+	"database/sql"
 	"flag"
 	"fmt"
 	"math"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/dustin/go-humanize"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
@@ -23,6 +24,7 @@ const (
 type Options struct {
 	color       string
 	sortBy      string
+	sqlFilter   string
 	minDiff     int64
 	noNew       bool
 	prettyPrint bool
@@ -99,9 +101,50 @@ type DiffEntry struct {
 	before   int64
 }
 
+func (d DiffEntry) String() string {
+	return fmt.Sprintf("DiffEntry{filename: %q, diff: %d, after: %d, before: %d}",
+		d.filename, d.diff, d.after, d.before)
+}
+
 // Function to format numbers with commas
 func formatNumber(n int64) string {
 	return strconv.FormatInt(int64(n), 10)
+}
+
+func setupDatabase(entries []DiffEntry) (*sql.DB, error) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		return nil, err
+	}
+
+	// Create table
+	_, err = db.Exec(`
+		CREATE TABLE entries (
+			filename TEXT,
+			diff INTEGER,
+			after INTEGER,
+			before INTEGER
+		)
+	`)
+	if err != nil {
+		return nil, err
+	}
+
+	// Insert data
+	stmt, err := db.Prepare("INSERT INTO entries VALUES (?, ?, ?, ?)")
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	for _, entry := range entries {
+		_, err = stmt.Exec(entry.filename, entry.diff, entry.after, entry.before)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return db, nil
 }
 
 func main() {
@@ -125,6 +168,7 @@ func main() {
 	minDiff := flag.Int64("min", math.MinInt64, "minimum diff value to show")
 	noNew := flag.Bool("no-new", false, "Do not include new (default: false)")
 	prettyPrint := flag.Bool("pretty-print", false, "")
+	sqlFilter := flag.String("sql", "", "SQL WHERE clause for filtering (e.g. 'diff > 1000')")
 
 	flag.Parse()
 	opts.color = *colorOpt
@@ -132,6 +176,7 @@ func main() {
 	opts.minDiff = *minDiff
 	opts.noNew = *noNew
 	opts.prettyPrint = *prettyPrint
+	opts.sqlFilter = *sqlFilter
 
 	args := flag.Args()
 	if len(args) != 2 {
@@ -190,38 +235,47 @@ func main() {
 		}
 	}
 
-	// sort by filename first
+	// After creating entries slice and before printing:
+	db, err := setupDatabase(entries)
+	if err != nil {
+		fmt.Printf("Error setting up database: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close()
 
+	// Replace existing filtering logic with SQL query
+	query := "SELECT filename, diff, after, before FROM entries"
+	if opts.sqlFilter != "" {
+		query += " WHERE " + opts.sqlFilter
+	}
 	switch opts.sortBy {
 	case "diff":
-		sort.SliceStable(entries, func(i, j int) bool {
-			return entries[i].diff > entries[j].diff
-		})
+		query += " ORDER BY diff DESC"
 	case "filename":
-		sort.SliceStable(entries, func(i, j int) bool {
-			return entries[i].filename < entries[j].filename
-		})
+		query += " ORDER BY filename"
 	}
 
-	useColor := shouldUseColor(opts.color)
+	rows, err := db.Query(query)
+	if err != nil {
+		fmt.Printf("Error executing query: %v\n", err)
+		os.Exit(1)
+	}
+	defer rows.Close()
 
-	colorStart, colorEnd, colorNew := "", "", ""
+	useColor := shouldUseColor(opts.color)
+	colorEnd, colorNew := "", ""
 	if useColor {
 		colorEnd, colorNew = resetColor, yellowColor
 	}
 
-	for _, entry := range entries {
-		if useColor {
-			if entry.diff > 0 {
-				colorStart = redColor
-			} else if entry.diff < 0 {
-				colorStart = greenColor
-			} else {
-				colorStart = resetColor
-			}
+	for rows.Next() {
+		var entry DiffEntry
+		err := rows.Scan(&entry.filename, &entry.diff, &entry.after, &entry.before)
+		if err != nil {
+			fmt.Printf("Error scanning row: %v\n", err)
+			continue
 		}
 
-		// Convert to strings if prettyPrint is enabled
 		var beforeStr, afterStr, diffStr string
 		if opts.prettyPrint {
 			beforeStr = humanize.Comma(entry.before)
@@ -231,6 +285,18 @@ func main() {
 			beforeStr = strconv.FormatInt(entry.before, 10)
 			afterStr = strconv.FormatInt(entry.after, 10)
 			diffStr = strconv.FormatInt(entry.diff, 10)
+		}
+
+		colorStart := ""
+		if useColor {
+			switch {
+			case entry.diff > 0:
+				colorStart = redColor
+			case entry.diff < 0:
+				colorStart = greenColor
+			default:
+				colorStart = resetColor
+			}
 		}
 
 		status := ""
@@ -243,26 +309,13 @@ func main() {
 			status = "(removed)"
 		}
 
-		fmt.Printf("%-50s | %s%8s (=%s-%s) %s%s\n",
-			entry.filename, // -50 left-aligns with 50 char width
+		fmt.Printf("%-50s | %s%12s (=%12s -%12s) %s%s\n",
+			entry.filename,
 			colorStart,
 			diffStr,
 			afterStr,
 			beforeStr,
 			status,
 			colorEnd)
-	}
-
-	if useColor {
-		if total > 0 {
-			colorStart = redColor
-		} else if total < 0 {
-			colorStart = greenColor
-		}
-	}
-	if opts.prettyPrint {
-		fmt.Printf("# Total diff (regardless of filters): %s%s%s\n", colorStart, humanize.Comma(total), colorEnd)
-	} else {
-		fmt.Printf("# Total diff (regardless of filters): %s%d%s\n", colorStart, total, colorEnd)
 	}
 }
