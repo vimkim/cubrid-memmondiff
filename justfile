@@ -1,13 +1,17 @@
 set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
 build:
-    go build .
+    CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build .
 
 run: run-ycsb
 
-build-release-from-linux:
+build-release: build-release-linux build-release-windows
+
+build-release-linux:
     CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o memmondiff-linux-amd64
-    CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc GOOS=windows GOARCH=amd64 go build -o memmondiff-windows-amd64.exe
+
+build-release-windows:
+    CGO_ENABLED=1 CC="zig cc -target x86_64-windows" GOOS=windows GOARCH=amd64 go build -o memmondiff-windows-amd64.exe
 
 run-ycsb: build
     ./memmondiff ./testdata/ycsb_before ./testdata/ycsb_after
